@@ -107,8 +107,17 @@ void BLECharacteristic::do_create(BLEService *service) {
 #endif
 
   esp_bt_uuid_t uuid = this->uuid_.get_uuid();
-  esp_err_t err = esp_ble_gatts_add_char(service->get_handle(), &uuid, static_cast<esp_gatt_perm_t>(this->permissions_),
-                                         this->properties_, nullptr, &control);
+  esp_gatt_perm_t perm_mask = ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE;
+#ifdef ESPHOME_ESP32_BLE_EXTENDED_AUTH_PARAMS
+  // Exclude permissions requiring security features not supported by the BLE configuration.
+  AuthReqMode mode = service->get_server()->get_parent()->get_auth_req();
+  perm_mask |= ((mode == AUTH_REQ_NO_BOND ? 0 : ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED) |
+                (mode & AUTH_REQ_MITM == 0 ? 0 : ESP_GATT_PERM_READ_ENC_MITM | ESP_GATT_PERM_WRITE_ENC_MITM));
+#else
+#endif
+  esp_err_t err =
+      esp_ble_gatts_add_char(service->get_handle(), &uuid, static_cast<esp_gatt_perm_t>(this->permissions_ & perm_mask),
+                             this->properties_, nullptr, &control);
 
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_ble_gatts_add_char failed: %d", err);
@@ -168,6 +177,18 @@ void BLECharacteristic::set_read_property(bool value) { this->set_property_bit_(
 void BLECharacteristic::set_write_property(bool value) { this->set_property_bit_(ESP_GATT_CHAR_PROP_BIT_WRITE, value); }
 void BLECharacteristic::set_write_no_response_property(bool value) {
   this->set_property_bit_(ESP_GATT_CHAR_PROP_BIT_WRITE_NR, value);
+}
+
+void BLECharacteristic::set_read_permissions(esp_gatt_perm_t perms) {
+  // Clear all read permission bits, then apply new ones.
+  esp_gatt_perm_t mask = ESP_GATT_PERM_READ | ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_READ_ENC_MITM;
+  this->permissions_ = (esp_gatt_perm_t) ((this->permissions_ & ~mask) | (perms | mask));
+}
+
+void BLECharacteristic::set_write_permissions(esp_gatt_perm_t perms) {
+  // Clear all write permission bits, then apply new ones.
+  esp_gatt_perm_t mask = ESP_GATT_PERM_WRITE | ESP_GATT_PERM_WRITE_ENCRYPTED | ESP_GATT_PERM_WRITE_ENC_MITM;
+  this->permissions_ = (esp_gatt_perm_t) ((this->permissions_ & ~mask) | (perms | mask));
 }
 
 void BLECharacteristic::gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if,

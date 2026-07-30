@@ -160,6 +160,41 @@ VALUE_TYPES = {
 }
 
 
+READ_PERM_MAP = {
+    False: "0",
+    True: "ESP_GATT_PERM_READ",
+    "encrypted": "ESP_GATT_PERM_READ_ENCRYPTED",
+    "enc_mitm": "ESP_GATT_PERM_READ_ENC_MITM",
+    "encrypted_mitm": "ESP_GATT_PERM_READ_ENC_MITM",
+}
+WRITE_PERM_MAP = {
+    False: "0",
+    True: "ESP_GATT_PERM_WRITE",
+    "encrypted": "ESP_GATT_PERM_WRITE_ENCRYPTED",
+    "enc_mitm": "ESP_GATT_PERM_WRITE_ENC_MITM",
+    "encrypted_mitm": "ESP_GATT_PERM_WRITE_ENC_MITM",
+}
+
+
+def validate_rw_perm(value):
+    """Accept bool, 'encrypted', 'enc_mitm' or 'encrypted_mitm'."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str) and value.lower() in (
+        "encrypted",
+        "enc_mitm",
+        "encrypted_mitm",
+    ):
+        return value.lower()
+    # Let cv.boolean handle 'true'/'false' strings, etc.
+    try:
+        return cv.boolean(value)
+    except cv.Invalid as err:
+        raise cv.Invalid(
+            f"Expected true, false, 'encrypted', 'enc_mitm' or 'encrypted_mitm', got {value!r}"
+        ) from err
+
+
 def validate_char_on_write(char_config):
     if (
         CONF_ON_WRITE in char_config
@@ -435,6 +470,8 @@ CHARACTERISTIC_SCHEMA = cv.Schema(
         cv.GenerateID(): cv.declare_id(BLECharacteristic),
         cv.Required(CONF_UUID): cv.Any(bt_uuid, cv.hex_uint32_t),
         cv.Optional(CONF_VALUE): value_schema(templatable=True),
+        cv.Optional(CONF_READ, default=False): validate_rw_perm,
+        cv.Optional(CONF_WRITE, default=False): validate_rw_perm,
         cv.GenerateID(CONF_CHAR_VALUE_ACTION_ID_): cv.declare_id(
             BLECharacteristicSetValueAction
         ),
@@ -449,7 +486,13 @@ CHARACTERISTIC_SCHEMA = cv.Schema(
         create_description_cud,
         create_notify_cccd,
     ],
-).extend({cv.Optional(k, default=False): cv.boolean for k in PROPERTY_MAP})
+).extend(
+    {
+        cv.Optional(k, default=False): cv.boolean
+        for k in PROPERTY_MAP
+        if k not in (CONF_READ, CONF_WRITE)
+    }
+)
 
 SERVICE_SCHEMA = cv.Schema(
     {
@@ -550,6 +593,10 @@ async def to_code_characteristic(service_var, char_conf):
             parse_properties(char_conf),
         ),
     )
+    expr = f"static_cast<esp_gatt_perm_t>({READ_PERM_MAP[char_conf[CONF_READ]]})"
+    cg.add(char_var.set_read_permissions(cg.RawExpression(expr)))
+    expr = f"static_cast<esp_gatt_perm_t>({WRITE_PERM_MAP[char_conf[CONF_WRITE]]})"
+    cg.add(char_var.set_write_permissions(cg.RawExpression(expr)))
     if CONF_ON_WRITE in char_conf:
         on_write_conf = char_conf[CONF_ON_WRITE]
         cg.add_define("USE_ESP32_BLE_SERVER_CHARACTERISTIC_ON_WRITE")

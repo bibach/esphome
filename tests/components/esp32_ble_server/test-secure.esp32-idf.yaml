@@ -1,0 +1,8 @@
+esp32_ble:
+  io_capability: display_only
+  auth_req_mode: sc_mitm_bond
+  auth_req_strict: true
+  local_privacy: true
+  key_types: enc_id_csr
+
+<<: !include common.yaml

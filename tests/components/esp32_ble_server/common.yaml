@@ -77,6 +77,14 @@ esp32_ble_server:
                   id: test_change_descriptor
                   value:
                     data: [0x01, 0x02, 0x03]
+        - id: test_secure_characteristic
+          uuid: 2a24b789-7a1b-4535-af3e-ee76a35cc13c
+          read: enc_mitm
+          write: enc_mitm
+          value:
+            data: "Secure"
+            string_encoding: utf-8
+          description: Secure characteristic
 
 # Regression test for #17142: the set_value action used from a trigger that passes
 # its argument by reference (climate on_control supplies ClimateCall&) previously

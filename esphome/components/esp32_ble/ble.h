@@ -109,6 +109,10 @@ class ESP32BLE final : public Component {
   void set_initiator_key_types(KeyTypes types) { this->initiator_key_types_ = (esp_ble_key_mask_t) types; }
   void set_responder_key_types(KeyTypes types) { this->responder_key_types_ = (esp_ble_key_mask_t) types; }
 
+  AuthReqMode get_auth_req() {
+    return this->auth_req_mode_.has_value() ? static_cast<AuthReqMode>(this->auth_req_mode_.value()) : AUTH_REQ_NO_BOND;
+  }
+
   bool remove_bonded_device(esp_bd_addr_t bda);
 #endif
 

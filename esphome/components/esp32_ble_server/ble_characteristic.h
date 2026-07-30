@@ -40,6 +40,8 @@ class BLECharacteristic final {
   void set_read_property(bool value);
   void set_write_property(bool value);
   void set_write_no_response_property(bool value);
+  void set_read_permissions(esp_gatt_perm_t perms);
+  void set_write_permissions(esp_gatt_perm_t perms);
 
   void notify();
 
@@ -96,7 +98,7 @@ class BLECharacteristic final {
   std::unique_ptr<std::function<void(std::span<const uint8_t>, uint16_t)>> on_write_callback_;
   std::unique_ptr<std::function<void(uint16_t)>> on_read_callback_;
 
-  esp_gatt_perm_t permissions_ = ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE;
+  esp_gatt_perm_t permissions_ = (esp_gatt_perm_t) 0;
 
   enum State : uint8_t {
     FAILED = 0x00,
