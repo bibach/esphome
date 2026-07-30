@@ -69,7 +69,8 @@ static constexpr uint32_t HOSTED_BT_WDT_TIMEOUT_MS = 60000;
   case ESP_GAP_BLE_PASSKEY_NOTIF_EVT: \
   case ESP_GAP_BLE_PASSKEY_REQ_EVT: \
   case ESP_GAP_BLE_NC_REQ_EVT: \
-  case ESP_GAP_BLE_SET_LOCAL_PRIVACY_COMPLETE_EVT
+  case ESP_GAP_BLE_SET_LOCAL_PRIVACY_COMPLETE_EVT: \
+  case ESP_GAP_BLE_REMOVE_BOND_DEV_COMPLETE_EVT
 
 void ESP32BLE::setup() {
   global_ble = this;
@@ -98,6 +99,17 @@ void ESP32BLE::disable() {
 
   this->state_ = BLE_COMPONENT_STATE_DISABLE;
 }
+
+#ifdef ESPHOME_ESP32_BLE_EXTENDED_AUTH_PARAMS
+bool ESP32BLE::remove_bonded_device(esp_bd_addr_t bda) {
+  esp_err_t err = esp_ble_remove_bond_device(bda);
+  if (err != ESP_OK) {
+    ESP_LOGW(TAG, "esp_ble_remove_bond_device failed: %s", esp_err_to_name(err));
+    return false;
+  }
+  return true;
+}
+#endif
 
 #ifdef USE_ESP32_BLE_ADVERTISING
 void ESP32BLE::advertising_start() {

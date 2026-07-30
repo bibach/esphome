@@ -108,6 +108,8 @@ class ESP32BLE final : public Component {
   void set_local_privacy(bool privacy) { this->local_privacy_ = privacy; }
   void set_initiator_key_types(KeyTypes types) { this->initiator_key_types_ = (esp_ble_key_mask_t) types; }
   void set_responder_key_types(KeyTypes types) { this->responder_key_types_ = (esp_ble_key_mask_t) types; }
+
+  bool remove_bonded_device(esp_bd_addr_t bda);
 #endif
 
   void set_advertising_cycle_time(uint32_t advertising_cycle_time) {
