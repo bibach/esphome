@@ -28,6 +28,7 @@ class BLEAdvertising {
   void set_min_preferred_interval(uint16_t interval) { this->advertising_data_.min_interval = interval; }
   void set_manufacturer_data(const std::vector<uint8_t> &data);
   void set_appearance(uint16_t appearance) { this->advertising_data_.appearance = appearance; }
+  void set_own_addr_type(esp_ble_addr_type_t type) { this->advertising_params_.own_addr_type = type; }
   void set_service_data(const std::vector<uint8_t> &data);
   void set_service_data(std::span<const uint8_t> data);
   void set_include_name(bool include_name) { this->include_name_in_adv_ = include_name; }

@@ -258,6 +258,8 @@ def register_bt_logger(*loggers: BTLoggers) -> None:
 CONF_BLE_ID = "ble_id"
 CONF_IO_CAPABILITY = "io_capability"
 CONF_AUTH_REQ_MODE = "auth_req_mode"
+CONF_AUTH_REQ_STRICT = "auth_req_strict"
+CONF_LOCAL_PRIVACY = "local_privacy"
 CONF_MAX_KEY_SIZE = "max_key_size"
 CONF_MIN_KEY_SIZE = "min_key_size"
 CONF_ADVERTISING = "advertising"
@@ -340,6 +342,8 @@ CONFIG_SCHEMA = cv.Schema(
         ),
         # note: no defaults so we can action them not being present
         cv.Optional(CONF_AUTH_REQ_MODE): cv.enum(AUTH_REQ_MODE, lower=True),
+        cv.Optional(CONF_AUTH_REQ_STRICT): cv.boolean,
+        cv.Optional(CONF_LOCAL_PRIVACY): cv.boolean,
         cv.Optional(CONF_MAX_KEY_SIZE): cv.int_range(min=7, max=16),
         cv.Optional(CONF_MIN_KEY_SIZE): cv.int_range(min=7, max=16),
         cv.Optional(CONF_ENABLE_ON_BOOT, default=True): cv.boolean,
@@ -527,6 +531,7 @@ async def to_code(config):
 
     if (
         CONF_AUTH_REQ_MODE in config
+        or CONF_AUTH_REQ_STRICT in config
         or CONF_MAX_KEY_SIZE in config
         or CONF_MIN_KEY_SIZE in config
     ):
@@ -534,6 +539,10 @@ async def to_code(config):
 
     if CONF_AUTH_REQ_MODE in config:
         cg.add(var.set_auth_req(config[CONF_AUTH_REQ_MODE]))
+    if CONF_AUTH_REQ_STRICT in config:
+        cg.add(var.set_auth_req_strict(config[CONF_AUTH_REQ_STRICT]))
+    if CONF_LOCAL_PRIVACY in config:
+        cg.add(var.set_local_privacy(config[CONF_LOCAL_PRIVACY]))
     if CONF_MAX_KEY_SIZE in config:
         cg.add(var.set_max_key_size(config[CONF_MAX_KEY_SIZE]))
     if CONF_MIN_KEY_SIZE in config:

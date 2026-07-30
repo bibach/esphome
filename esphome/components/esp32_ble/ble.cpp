@@ -67,7 +67,8 @@ static constexpr uint32_t HOSTED_BT_WDT_TIMEOUT_MS = 60000;
   case ESP_GAP_BLE_SEC_REQ_EVT: \
   case ESP_GAP_BLE_PASSKEY_NOTIF_EVT: \
   case ESP_GAP_BLE_PASSKEY_REQ_EVT: \
-  case ESP_GAP_BLE_NC_REQ_EVT
+  case ESP_GAP_BLE_NC_REQ_EVT: \
+  case ESP_GAP_BLE_SET_LOCAL_PRIVACY_COMPLETE_EVT
 
 void ESP32BLE::setup() {
   global_ble = this;
@@ -175,6 +176,11 @@ void ESP32BLE::advertising_init_() {
   this->advertising_->set_scan_response(true);
   this->advertising_->set_min_preferred_interval(0x06);
   this->advertising_->set_appearance(this->appearance_);
+  bool local_privacy = false;
+#ifdef ESPHOME_ESP32_BLE_EXTENDED_AUTH_PARAMS
+  local_privacy = this->local_privacy_ && this->local_privacy_.value();
+#endif
+  this->advertising_->set_own_addr_type(local_privacy ? BLE_ADDR_TYPE_RPA_PUBLIC : BLE_ADDR_TYPE_PUBLIC);
 }
 #endif
 
@@ -362,6 +368,25 @@ bool ESP32BLE::ble_setup_() {
       return false;
     }
   }
+
+  if (this->auth_req_strict_) {
+    uint8_t auth_option = this->auth_req_strict_.value() ? ESP_BLE_ONLY_ACCEPT_SPECIFIED_AUTH_ENABLE
+                                                         : ESP_BLE_ONLY_ACCEPT_SPECIFIED_AUTH_DISABLE;
+    err = esp_ble_gap_set_security_param(ESP_BLE_SM_ONLY_ACCEPT_SPECIFIED_SEC_AUTH, &auth_option, sizeof(uint8_t));
+    if (err != ESP_OK) {
+      ESP_LOGE(TAG, "esp_ble_gap_set_security_param only_accept_specified_sec_auth failed: %d", err);
+      return false;
+    }
+  }
+
+  if (this->local_privacy_) {
+    bool privacy = this->local_privacy_.value();
+    err = esp_ble_gap_config_local_privacy(privacy);
+    if (err != ESP_OK) {
+      ESP_LOGE(TAG, "esp_ble_gap_config_local_privacy(%s) failed: %d", privacy ? "true" : "false", err);
+      return false;
+    }
+  }
 #endif  // ESPHOME_ESP32_BLE_EXTENDED_AUTH_PARAMS
 
   // BLE takes some time to be fully set up, 200ms should be more than enough
@@ -458,6 +483,15 @@ void ESP32BLE::loop() {
         esp_gatt_if_t gatts_if = ble_event->event_.gatts.gatts_if;
         esp_ble_gatts_cb_param_t *param = &ble_event->event_.gatts.gatts_param;
         ESP_LOGV(TAG, "gatts_event [esp_gatt_if: %d] - %d", gatts_if, event);
+
+#ifdef ESPHOME_ESP32_BLE_EXTENDED_AUTH_PARAMS
+        if (event == ESP_GATTS_CONNECT_EVT && this->auth_req_strict_.has_value() && this->auth_req_strict_.value() &&
+            this->auth_req_mode_.has_value() && this->auth_req_mode_.value() != ESP_LE_AUTH_NO_BOND) {
+          esp_ble_set_encryption(param->connect.remote_bda, (this->auth_req_mode_.value() & ESP_LE_AUTH_REQ_MITM)
+                                                                ? ESP_BLE_SEC_ENCRYPT_MITM
+                                                                : ESP_BLE_SEC_ENCRYPT_NO_MITM);
+        }
+#endif
         this->gatts_event_callbacks_.call(event, gatts_if, param);
         break;
       }
@@ -522,6 +556,12 @@ void ESP32BLE::loop() {
               // clang-format on
               // Dispatch to all registered handlers
               this->gap_event_callbacks_.call(gap_event, param);
+
+              if (gap_event == ESP_GAP_BLE_SEC_REQ_EVT) {
+                // Assume the configured security mechanisms have done their job and
+                // blindly accept the security request with a position (true) response
+                esp_ble_gap_security_rsp(param->ble_security.ble_req.bd_addr, true);
+              }
             }
 #endif
             break;
