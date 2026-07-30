@@ -64,6 +64,7 @@ static constexpr uint32_t HOSTED_BT_WDT_TIMEOUT_MS = 60000;
 
 #define GAP_SECURITY_EVENTS \
   case ESP_GAP_BLE_AUTH_CMPL_EVT: \
+  case ESP_GAP_BLE_KEY_EVT: \
   case ESP_GAP_BLE_SEC_REQ_EVT: \
   case ESP_GAP_BLE_PASSKEY_NOTIF_EVT: \
   case ESP_GAP_BLE_PASSKEY_REQ_EVT: \
@@ -384,6 +385,24 @@ bool ESP32BLE::ble_setup_() {
     err = esp_ble_gap_config_local_privacy(privacy);
     if (err != ESP_OK) {
       ESP_LOGE(TAG, "esp_ble_gap_config_local_privacy(%s) failed: %d", privacy ? "true" : "false", err);
+      return false;
+    }
+  }
+
+  if (this->initiator_key_types_) {
+    err = esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &(this->initiator_key_types_.value()),
+                                         sizeof(esp_ble_key_mask_t));
+    if (err != ESP_OK) {
+      ESP_LOGE(TAG, "esp_ble_gap_set_security_param set_init_key failed: %d", err);
+      return false;
+    }
+  }
+
+  if (this->responder_key_types_) {
+    err = esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &(this->responder_key_types_.value()),
+                                         sizeof(esp_ble_key_mask_t));
+    if (err != ESP_OK) {
+      ESP_LOGE(TAG, "esp_ble_gap_set_security_param set_rsp_key failed: %d", err);
       return false;
     }
   }

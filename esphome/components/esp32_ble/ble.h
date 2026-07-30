@@ -72,6 +72,15 @@ enum AuthReqMode {
   AUTH_REQ_SC_MITM = ESP_LE_AUTH_REQ_SC_MITM,
   AUTH_REQ_SC_MITM_BOND = ESP_LE_AUTH_REQ_SC_MITM_BOND,
 };
+
+enum KeyTypes {
+  KEY_TYPES_ENC = ESP_BLE_ENC_KEY_MASK,
+  KEY_TYPES_ID = ESP_BLE_ID_KEY_MASK,
+  KEY_TYPES_CSR = ESP_BLE_CSR_KEY_MASK,
+  KEY_TYPES_LINK = ESP_BLE_LINK_KEY_MASK,
+  KEY_TYPES_ENC_ID = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK,
+  KEY_TYPES_ENC_ID_CSR = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK | ESP_BLE_CSR_KEY_MASK,
+};
 #endif
 
 enum BLEComponentState : uint8_t {
@@ -97,6 +106,8 @@ class ESP32BLE final : public Component {
   void set_auth_req(AuthReqMode req) { this->auth_req_mode_ = (esp_ble_auth_req_t) req; }
   void set_auth_req_strict(bool strict) { this->auth_req_strict_ = strict; }
   void set_local_privacy(bool privacy) { this->local_privacy_ = privacy; }
+  void set_initiator_key_types(KeyTypes types) { this->initiator_key_types_ = (esp_ble_key_mask_t) types; }
+  void set_responder_key_types(KeyTypes types) { this->responder_key_types_ = (esp_ble_key_mask_t) types; }
 #endif
 
   void set_advertising_cycle_time(uint32_t advertising_cycle_time) {
@@ -231,6 +242,8 @@ class ESP32BLE final : public Component {
   optional<esp_ble_auth_req_t> auth_req_mode_;
   optional<bool> auth_req_strict_;
   optional<bool> local_privacy_;
+  optional<esp_ble_key_mask_t> initiator_key_types_;
+  optional<esp_ble_key_mask_t> responder_key_types_;
 
   uint8_t max_key_size_{0};  // range is 7..16, 0 is unset
   uint8_t min_key_size_{0};  // range is 7..16, 0 is unset

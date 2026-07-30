@@ -1,6 +1,8 @@
 from collections.abc import Callable, MutableMapping
 from enum import Enum
+from functools import reduce
 import logging
+import operator
 from typing import Any
 
 from esphome import automation
@@ -260,6 +262,9 @@ CONF_IO_CAPABILITY = "io_capability"
 CONF_AUTH_REQ_MODE = "auth_req_mode"
 CONF_AUTH_REQ_STRICT = "auth_req_strict"
 CONF_LOCAL_PRIVACY = "local_privacy"
+CONF_KEY_TYPES = "key_types"
+CONF_INITIATOR = "initiator"
+CONF_RESPONDER = "responder"
 CONF_MAX_KEY_SIZE = "max_key_size"
 CONF_MIN_KEY_SIZE = "min_key_size"
 CONF_ADVERTISING = "advertising"
@@ -320,6 +325,16 @@ AUTH_REQ_MODE = {
     "sc_mitm_bond": AuthReqMode.AUTH_REQ_SC_MITM_BOND,
 }
 
+KeyTypes = esp32_ble_ns.enum("KeyTypes")
+KEY_TYPES = {
+    "enc": KeyTypes.KEY_TYPES_ENC,
+    "id": KeyTypes.KEY_TYPES_ID,
+    "csr": KeyTypes.KEY_TYPES_CSR,
+    "link": KeyTypes.KEY_TYPES_LINK,
+    "enc_id": KeyTypes.KEY_TYPES_ENC_ID,
+    "enc_id_csr": KeyTypes.KEY_TYPES_ENC_ID_CSR,
+}
+
 esp_power_level_t = cg.global_ns.enum("esp_power_level_t")
 
 TX_POWER_LEVELS = {
@@ -344,6 +359,20 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_AUTH_REQ_MODE): cv.enum(AUTH_REQ_MODE, lower=True),
         cv.Optional(CONF_AUTH_REQ_STRICT): cv.boolean,
         cv.Optional(CONF_LOCAL_PRIVACY): cv.boolean,
+        cv.Optional(CONF_KEY_TYPES): cv.Any(
+            cv.ensure_list(cv.enum(KEY_TYPES, lower=True)),
+            cv.All(
+                {
+                    cv.Optional(CONF_INITIATOR): cv.ensure_list(
+                        cv.enum(KEY_TYPES, lower=True)
+                    ),
+                    cv.Optional(CONF_RESPONDER): cv.ensure_list(
+                        cv.enum(KEY_TYPES, lower=True)
+                    ),
+                },
+                cv.has_at_least_one_key(CONF_INITIATOR, CONF_RESPONDER),
+            ),
+        ),
         cv.Optional(CONF_MAX_KEY_SIZE): cv.int_range(min=7, max=16),
         cv.Optional(CONF_MIN_KEY_SIZE): cv.int_range(min=7, max=16),
         cv.Optional(CONF_ENABLE_ON_BOOT, default=True): cv.boolean,
@@ -532,6 +561,7 @@ async def to_code(config):
     if (
         CONF_AUTH_REQ_MODE in config
         or CONF_AUTH_REQ_STRICT in config
+        or CONF_KEY_TYPES in config
         or CONF_MAX_KEY_SIZE in config
         or CONF_MIN_KEY_SIZE in config
     ):
@@ -543,6 +573,19 @@ async def to_code(config):
         cg.add(var.set_auth_req_strict(config[CONF_AUTH_REQ_STRICT]))
     if CONF_LOCAL_PRIVACY in config:
         cg.add(var.set_local_privacy(config[CONF_LOCAL_PRIVACY]))
+    if CONF_KEY_TYPES in config:
+        key_types_conf = config[CONF_KEY_TYPES]
+        if isinstance(key_types_conf, list):
+            value = reduce(operator.or_, key_types_conf)
+            cg.add(var.set_initiator_key_types(value))
+            cg.add(var.set_responder_key_types(value))
+        else:
+            if CONF_INITIATOR in key_types_conf:
+                value = reduce(operator.or_, key_types_conf[CONF_INITIATOR])
+                cg.add(var.set_initiator_key_types(value))
+            if CONF_RESPONDER in key_types_conf:
+                value = reduce(operator.or_, key_types_conf[CONF_RESPONDER])
+                cg.add(var.set_responder_key_types(value))
     if CONF_MAX_KEY_SIZE in config:
         cg.add(var.set_max_key_size(config[CONF_MAX_KEY_SIZE]))
     if CONF_MIN_KEY_SIZE in config:
